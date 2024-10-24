@@ -1,5 +1,6 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import express from 'express';
@@ -72,6 +73,7 @@ async function bootstrap() {
       credentials: true,
     }),
   );
+  app.use(cookieParser());
   app.use(express.static('public'));
   app.useGlobalPipes(new ValidationPipe());
 

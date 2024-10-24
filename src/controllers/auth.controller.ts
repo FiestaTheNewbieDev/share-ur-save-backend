@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
@@ -12,7 +12,6 @@ import {
   MinLength,
 } from 'class-validator';
 import { Request, Response } from 'express';
-import { SessionGuard } from 'src/guards/session.guard';
 import { AuthService } from 'src/services/auth.service';
 
 class SignUpDto {
@@ -67,13 +66,22 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
+    console.log('[AUTH CONTROLLER] Sign-up request');
+
     const result = await this.authService.signUp(
       body.username,
       body.email,
       body.password,
     );
 
-    return response.status(201).json(result);
+    return response
+      .status(201)
+      .cookie('session_id', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+      })
+      .json({ user: result.user });
   }
 
   @Post('sign-in')
@@ -82,15 +90,18 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    try {
-      console.log(`[AuthController] sign-in request`);
+    console.log('[AUTH CONTROLLER] Sign-in request');
 
-      const result = await this.authService.signIn(body.login, body.password);
+    const result = await this.authService.signIn(body.login, body.password);
 
-      return response.status(200).json(result);
-    } catch (error) {
-      console.error(`[AuthController] sign-in error: ${error.message}`);
-    }
+    return response
+      .status(200)
+      .cookie('session_id', result.token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+      })
+      .json({ user: result.user });
   }
 
   @Post('sign-out')
@@ -99,7 +110,18 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    await this.authService.signOut(request.headers.authorization.split(' ')[1]);
+    console.log('[AUTH CONTROLLER] Sign-out request');
+
+    await this.authService.signOut(request.cookies.session_id);
     return response.status(200);
+  }
+
+  @Get('user')
+  async fetchUser(@Req() request: Request, @Res() response: Response) {
+    console.log('[AUTH CONTROLLER] Fetch user request');
+
+    const result = await this.authService.fetchUser(request.cookies.session_id);
+
+    return response.status(200).json(result);
   }
 }
