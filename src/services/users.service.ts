@@ -18,7 +18,7 @@ type CreateUserParams = {
 );
 
 @Injectable()
-export class UserService {
+export class UsersService {
   constructor(private prismaService: PrismaService) {}
 
   async findByUuid(uuid: string): Promise<User> {

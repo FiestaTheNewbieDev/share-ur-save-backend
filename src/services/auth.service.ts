@@ -7,12 +7,12 @@ import { JwtService } from '@nestjs/jwt';
 import { User } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import { RedisService } from 'src/services/redis.service';
-import { UserService } from 'src/services/user.service';
+import { UsersService } from 'src/services/users.service';
 
 @Injectable()
 export class AuthService {
   constructor(
-    private userService: UserService,
+    private usersService: UsersService,
     private redisService: RedisService,
     private jwtService: JwtService,
   ) {}
@@ -35,16 +35,16 @@ export class AuthService {
     email: string,
     password: string,
   ): Promise<{ token: string; user: Omit<User, 'password'> }> {
-    let user = await this.userService.findByEmail(email);
+    let user = await this.usersService.findByEmail(email);
     if (user) {
       throw new ConflictException('Email already taken');
     }
-    user = await this.userService.findByUsername(username);
+    user = await this.usersService.findByUsername(username);
     if (user) {
       throw new ConflictException('Username already taken');
     }
 
-    user = await this.userService.create({
+    user = await this.usersService.create({
       username,
       email,
       password,
@@ -61,7 +61,7 @@ export class AuthService {
     login: string,
     password: string,
   ): Promise<{ token: string; user: Omit<User, 'password'> }> {
-    const user = await this.userService.findByEmailOrUsername(login);
+    const user = await this.usersService.findByEmailOrUsername(login);
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -90,7 +90,7 @@ export class AuthService {
     }
 
     const payload = this.jwtService.decode(token);
-    const user = await this.userService.findByUuid(payload.sub);
+    const user = await this.usersService.findByUuid(payload.sub);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }

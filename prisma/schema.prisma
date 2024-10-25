@@ -15,8 +15,6 @@ model User {
   displayName String? @map("display_name")
   email String @unique
   password String?
-  steamId String? @unique @map("steam_id")
-  googleId String? @unique @map("google_id")
 
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
@@ -30,7 +28,6 @@ model Game {
   rawgId Int @unique @map("rawg_id")
   slug String @unique
   name String
-  releasedAt DateTime @map("released_at")
   
   createdAt DateTime @default(now()) @map("created_at")
   updatedAt DateTime @updatedAt @map("updated_at")
