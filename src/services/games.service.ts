@@ -4,10 +4,9 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UUID } from 'crypto';
+import { CombinedGame, RawgGame } from 'share-ur-save-common';
 import { PrismaService } from 'src/services/prisma.service';
 import { RawgService } from 'src/services/rawg.service';
-import { CombinedGame } from 'src/types/game';
-import { Game as RawgGame } from 'src/types/rawg';
 
 @Injectable()
 export class GamesService {

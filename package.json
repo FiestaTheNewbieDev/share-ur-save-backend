@@ -1,5 +1,5 @@
 {
-  "name": "back",
+  "name": "share-ur-save-backend",
   "version": "0.0.1",
   "description": "",
   "author": "",
@@ -18,9 +18,7 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:studio": "prisma studio"
+    "common:up": "npm update share-ur-save-common"
   },
   "dependencies": {
     "@nestjs/common": "^10.0.0",
@@ -50,7 +48,8 @@
     "pg": "^8.13.0",
     "redis": "^4.7.0",
     "reflect-metadata": "^0.2.0",
-    "rxjs": "^7.8.1"
+    "rxjs": "^7.8.1",
+    "share-ur-save-common": "git+https://github.com/FiestaTheNewbieDev/share-ur-save-common"
   },
   "devDependencies": {
     "@nestjs/cli": "^10.0.0",

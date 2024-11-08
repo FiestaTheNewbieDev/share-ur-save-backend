@@ -4,8 +4,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
-import { User } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { User } from 'share-ur-save-common';
 import { RedisService } from 'src/services/redis.service';
 import { UsersService } from 'src/services/users.service';
 

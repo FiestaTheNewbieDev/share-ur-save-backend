@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { User } from '@prisma/client';
 import bcrypt from 'bcrypt';
+import { User } from 'share-ur-save-common';
 import { PrismaService } from 'src/services/prisma.service';
 
 type CreateUserParams = {

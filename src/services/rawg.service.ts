@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import axios, { AxiosInstance, AxiosResponse } from 'axios';
-import { Game, GameDetails } from 'src/types/rawg';
+import {
+  RawgGame as Game,
+  RawgGameDetails as GameDetails,
+} from 'share-ur-save-common';
 
 interface IGetGamesParams {
   page?: number;
