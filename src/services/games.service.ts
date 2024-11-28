@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UUID } from 'crypto';
-import type { CombinedGame, RawgGame } from 'share-ur-save-common';
+import type { CombinedGame, GameSearchResult } from 'share-ur-save-common';
 import { PrismaService } from 'src/services/prisma.service';
 import { RawgService } from 'src/services/rawg.service';
 
@@ -128,9 +128,44 @@ export class GamesService {
     return combinedData;
   }
 
-  async getGames(): Promise<RawgGame[]> {
-    const data = await this.rawgService.getGames();
+  async getGames(
+    search?: string,
+    params?: { size?: number },
+  ): Promise<GameSearchResult[]> {
+    const data = await this.rawgService.getGames({
+      search,
+      page_size: params.size,
+    });
 
-    return data.results;
+    return Promise.all(
+      data.results.map(async (game) => {
+        return GamesService.convertCombinedGameToSearchResult(
+          await this.getGameByRawgId(game.id),
+        );
+      }),
+    );
+  }
+
+  private static async convertCombinedGameToSearchResult(game: CombinedGame) {
+    const result: GameSearchResult = {
+      uuid: game.uuid,
+      rawgId: game.rawgId,
+      slug: game.slug,
+
+      name: game.name,
+      rawgData: {
+        id: game.rawgData.id,
+        slug: game.rawgData.slug,
+        name: game.rawgData.name,
+        released: game.rawgData.released,
+        background_image: game.rawgData.background_image,
+      },
+
+      createdAt: game.createdAt,
+      updatedAt: game.updatedAt,
+      deletedAt: game.deletedAt,
+    };
+
+    return result;
   }
 }
