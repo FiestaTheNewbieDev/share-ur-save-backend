@@ -4,7 +4,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UUID } from 'crypto';
-import { CombinedGame, RawgGame } from 'share-ur-save-common';
+import type { CombinedGame, RawgGame } from 'share-ur-save-common';
 import { PrismaService } from 'src/services/prisma.service';
 import { RawgService } from 'src/services/rawg.service';
 
