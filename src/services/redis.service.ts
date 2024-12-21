@@ -5,8 +5,22 @@ import { Redis, RedisKey } from 'ioredis';
 export class RedisService {
   private redisClient: Redis;
 
+  private status: 'online' | 'offline' = 'offline';
+
   constructor() {
     this.redisClient = new Redis();
+
+    this.redisClient.on('connect', () => {
+      this.status = 'online';
+    });
+
+    this.redisClient.on('error', (error) => {});
+
+    this.redisClient.on('reconnecting', () => {});
+
+    this.redisClient.on('end', () => {
+      this.status = 'offline';
+    });
   }
 
   async set(
@@ -33,5 +47,9 @@ export class RedisService {
 
   async del(key: RedisKey) {
     return this.redisClient.del(key);
+  }
+
+  getStatus() {
+    return this.status;
   }
 }

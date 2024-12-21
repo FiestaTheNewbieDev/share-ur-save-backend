@@ -6,6 +6,8 @@ export class PrismaService
   extends PrismaClient
   implements OnModuleInit, OnModuleDestroy
 {
+  private status: 'online' | 'offline' = 'offline';
+
   constructor() {
     super({ log: ['warn', 'error'] });
 
@@ -29,10 +31,20 @@ export class PrismaService
   }
 
   async onModuleInit() {
-    await this.$connect();
+    try {
+      await this.$connect();
+      this.status = 'online';
+    } catch (error) {
+      this.status = 'offline';
+    }
   }
 
   async onModuleDestroy() {
     await this.$disconnect();
+    this.status = 'offline';
+  }
+
+  getStatus() {
+    return this.status;
   }
 }
