@@ -4,7 +4,11 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { UUID } from 'crypto';
-import type { CombinedGame, GameSearchResult } from 'share-ur-save-common';
+import type {
+  CombinedGame,
+  GameSearchResult,
+  Ordering,
+} from 'share-ur-save-common';
 import { PrismaService } from 'src/services/prisma.service';
 import { RawgService } from 'src/services/rawg.service';
 
@@ -15,7 +19,7 @@ export class GamesService {
     private prismaService: PrismaService,
   ) {}
 
-  async getGame(key: string) {
+  async getGame(key: string, includeDeleted = false) {
     const parsedKey = parseInt(key);
 
     let game = await this.prismaService.game.findFirst({
@@ -30,7 +34,8 @@ export class GamesService {
 
     let rawgGame = await this.rawgService.getGameById(key);
 
-    if (!game && !rawgGame) throw new NotFoundException('Game not found');
+    if ((!game && !rawgGame) || (!includeDeleted && game.deletedAt !== null))
+      throw new NotFoundException('Game not found');
 
     if (!game)
       game = await this.prismaService.game.create({
@@ -51,10 +56,14 @@ export class GamesService {
     return combinedGame;
   }
 
-  async getGameByUuid(uuid: UUID): Promise<CombinedGame> {
+  async getGameByUuid(
+    uuid: UUID,
+    includeDeleted = false,
+  ): Promise<CombinedGame> {
     const game = await this.prismaService.game.findUnique({
       where: {
         uuid,
+        deletedAt: includeDeleted ? undefined : null,
       },
     });
 
@@ -72,7 +81,10 @@ export class GamesService {
     return combinedData;
   }
 
-  async getGameByRawgId(id: number): Promise<CombinedGame> {
+  async getGameByRawgId(
+    id: number,
+    includeDeleted = false,
+  ): Promise<CombinedGame> {
     const rawgGame = await this.rawgService.getGameById(id);
 
     if (!rawgGame) throw new NotFoundException('Game not found');
@@ -82,6 +94,9 @@ export class GamesService {
         rawgId: rawgGame.id,
       },
     });
+
+    if (game && game.deletedAt !== null && !includeDeleted)
+      throw new NotFoundException('Game not found');
 
     if (!game)
       game = await this.prismaService.game.create({
@@ -100,7 +115,7 @@ export class GamesService {
     return combinedData;
   }
 
-  async getGameBySlug(slug: string) {
+  async getGameBySlug(slug: string, includeDeleted = false) {
     const rawgGame = await this.rawgService.getGameById(slug);
 
     if (!rawgGame) throw new NotFoundException('Game not found');
@@ -110,6 +125,9 @@ export class GamesService {
         slug: rawgGame.slug,
       },
     });
+
+    if (game && game.deletedAt !== null && !includeDeleted)
+      throw new NotFoundException('Game not found');
 
     if (!game)
       game = await this.prismaService.game.create({
@@ -130,20 +148,27 @@ export class GamesService {
 
   async getGames(
     search?: string,
-    params?: { size?: number },
+    params?: { size?: number; sort?: Ordering },
   ): Promise<GameSearchResult[]> {
     const data = await this.rawgService.getGames({
       search,
       page_size: params.size,
+      ordering: params.sort,
     });
 
-    return Promise.all(
+    const results = await Promise.all(
       data.results.map(async (game) => {
-        return GamesService.convertCombinedGameToSearchResult(
-          await this.getGameByRawgId(game.id),
-        );
+        try {
+          return GamesService.convertCombinedGameToSearchResult(
+            await this.getGameByRawgId(game.id),
+          );
+        } catch (error) {
+          return null;
+        }
       }),
     );
+
+    return results.filter((game) => game !== null);
   }
 
   private static async convertCombinedGameToSearchResult(game: CombinedGame) {

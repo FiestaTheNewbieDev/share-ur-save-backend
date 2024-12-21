@@ -3,6 +3,7 @@ import axios, { AxiosInstance, AxiosResponse } from 'axios';
 import {
   RawgGame as Game,
   RawgGameDetails as GameDetails,
+  Ordering,
 } from 'share-ur-save-common';
 
 interface IGetGamesParams {
@@ -28,21 +29,7 @@ interface IGetGamesParams {
   exclude_parents?: boolean;
   exclude_game_series?: boolean;
   exclude_stores?: string;
-  ordering?:
-    | 'name'
-    | 'released'
-    | 'added'
-    | 'created'
-    | 'updated'
-    | 'rating'
-    | 'metacritic'
-    | '-name'
-    | '-released'
-    | '-added'
-    | '-created'
-    | '-updated'
-    | '-rating'
-    | '-metacritic';
+  ordering?: Ordering;
 }
 
 interface IGetGamesData {
