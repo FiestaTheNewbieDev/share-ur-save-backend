@@ -1,10 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Redis, RedisKey } from 'ioredis';
 
 @Injectable()
 export class RedisService {
   private redisClient: Redis;
-
+  private logger = new Logger(RedisService.name);
   private status: 'online' | 'offline' = 'offline';
 
   constructor() {
@@ -12,14 +12,20 @@ export class RedisService {
 
     this.redisClient.on('connect', () => {
       this.status = 'online';
+      this.logger.log('Redis connected');
     });
 
-    this.redisClient.on('error', (error) => {});
+    this.redisClient.on('error', (error) => {
+      this.logger.error('Redis connection failed', error.stack);
+    });
 
-    this.redisClient.on('reconnecting', () => {});
+    this.redisClient.on('reconnecting', () => {
+      this.logger.warn('Redis reconnecting');
+    });
 
     this.redisClient.on('end', () => {
       this.status = 'offline';
+      this.logger.log('Redis disconnected');
     });
   }
 
@@ -41,8 +47,15 @@ export class RedisService {
     return this.redisClient.set(key, value);
   }
 
-  async get(key: RedisKey) {
-    return this.redisClient.get(key);
+  async get(key: RedisKey): Promise<string | object> {
+    const value = await this.redisClient.get(key);
+
+    try {
+      const parsedValue = await JSON.parse(value);
+      return parsedValue;
+    } catch (error) {
+      return value;
+    }
   }
 
   async del(key: RedisKey) {

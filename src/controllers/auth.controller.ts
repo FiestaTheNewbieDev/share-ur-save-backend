@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, Req, Res } from '@nestjs/common';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
@@ -58,6 +58,8 @@ class SignInDto {
 
 @Controller('auth')
 export class AuthController {
+  private logger = new Logger(AuthController.name);
+
   constructor(private authService: AuthService) {}
 
   @Post('sign-up')
@@ -66,7 +68,7 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    console.log('[AUTH CONTROLLER] Sign-up request');
+    this.logger.log('Sign-up');
 
     const result = await this.authService.signUp(
       body.username,
@@ -90,7 +92,7 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    console.log('[AUTH CONTROLLER] Sign-in request');
+    this.logger.log('Sign-in');
 
     const result = await this.authService.signIn(body.login, body.password);
 
@@ -110,7 +112,7 @@ export class AuthController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    console.log('[AUTH CONTROLLER] Sign-out request');
+    this.logger.log('Sign-out');
 
     await this.authService.signOut(request.cookies.session_id);
     return response.status(200);
@@ -118,7 +120,7 @@ export class AuthController {
 
   @Get('user')
   async fetchUser(@Req() request: Request, @Res() response: Response) {
-    console.log('[AUTH CONTROLLER] Fetch user request');
+    this.logger.log('Fetch user');
 
     const result = await this.authService.fetchUser(request.cookies.session_id);
 

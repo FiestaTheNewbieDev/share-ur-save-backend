@@ -1,10 +1,11 @@
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import cookieParser from 'cookie-parser';
 import cors from 'cors';
 import express from 'express';
 import { PostgresCheckGuard } from 'src/guards/healthGuards/postgresCheck.guard';
 import { RedisCheckGuard } from 'src/guards/healthGuards/redisCheck.guard';
+import { LoggingInterceptor } from 'src/interceptors/logging.interceptor';
 import { AppModule } from 'src/modules/app.module';
 import { setupSwagger } from 'src/swagger';
 
@@ -20,6 +21,8 @@ async function bootstrap() {
   );
   app.use(cookieParser());
   app.use(express.static('public'));
+  app.useLogger(new Logger());
+  app.useGlobalInterceptors(app.get(LoggingInterceptor));
   app.useGlobalGuards(app.get(PostgresCheckGuard));
   app.useGlobalGuards(app.get(RedisCheckGuard));
   app.useGlobalPipes(new ValidationPipe());

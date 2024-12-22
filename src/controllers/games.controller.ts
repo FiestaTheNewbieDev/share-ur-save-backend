@@ -2,13 +2,18 @@ import {
   BadRequestException,
   Controller,
   Get,
-  Optional,
+  Logger,
   Param,
   Query,
   Req,
   Res,
 } from '@nestjs/common';
-import { IsNotEmpty, IsNumber, IsString } from 'class-validator';
+import {
+  IsNotEmpty,
+  IsNumberString,
+  IsOptional,
+  IsString,
+} from 'class-validator';
 import { Request, Response } from 'express';
 import { Ordering } from 'share-ur-save-common';
 import { GamesService } from 'src/services/games.service';
@@ -21,15 +26,15 @@ class GetGameDto {
 
 class GetGamesDto {
   @IsString()
-  @Optional()
+  @IsOptional()
   keyword: string;
 
-  @IsNumber()
-  @Optional()
+  @IsNumberString()
+  @IsOptional()
   size: number;
 
   @IsString()
-  @Optional()
+  @IsOptional()
   sort: Ordering;
 }
 
@@ -37,6 +42,8 @@ const BASE_URL = '/game';
 
 @Controller('')
 export class GamesController {
+  private logger = new Logger(GamesController.name);
+
   constructor(private gamesService: GamesService) {}
 
   @Get(`${BASE_URL}/:id`)
@@ -45,7 +52,7 @@ export class GamesController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    console.log('[GAME CONTROLLER] Get game request');
+    this.logger.log(`Get game with ID: ${params.id}`);
 
     if (!params.id) throw new BadRequestException('ID required');
 
@@ -60,7 +67,7 @@ export class GamesController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
-    console.log('[GAMES CONTROLLER] Get games request');
+    this.logger.log(`Get games`);
 
     const params: any = {};
 
