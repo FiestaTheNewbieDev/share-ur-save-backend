@@ -30,12 +30,13 @@ export class GamesService {
           { rawgId: isNaN(parsedKey) ? undefined : parsedKey },
         ],
       },
+      // @ts-expect-error includeDeleted is a custom arg used in middleware
+      includeDeleted,
     });
 
     let rawgGame = await this.rawgService.getGameById(key);
 
-    if ((!game && !rawgGame) || (!includeDeleted && game.deletedAt !== null))
-      throw new NotFoundException('Game not found');
+    if (!game && !rawgGame) throw new NotFoundException('Game not found');
 
     if (!game)
       game = await this.prismaService.game.create({
@@ -63,8 +64,9 @@ export class GamesService {
     const game = await this.prismaService.game.findUnique({
       where: {
         uuid,
-        deletedAt: includeDeleted ? undefined : null,
       },
+      // @ts-expect-error includeDeleted is a custom arg used in middleware
+      includeDeleted,
     });
 
     if (!game) throw new NotFoundException('Game not found');
@@ -93,10 +95,9 @@ export class GamesService {
       where: {
         rawgId: rawgGame.id,
       },
+      // @ts-expect-error includeDeleted is a custom arg used in middleware
+      includeDeleted,
     });
-
-    if (game && game.deletedAt !== null && !includeDeleted)
-      throw new NotFoundException('Game not found');
 
     if (!game)
       game = await this.prismaService.game.create({
@@ -124,10 +125,9 @@ export class GamesService {
       where: {
         slug: rawgGame.slug,
       },
+      // @ts-expect-error includeDeleted is a custom arg used in middleware
+      includeDeleted,
     });
-
-    if (game && game.deletedAt !== null && !includeDeleted)
-      throw new NotFoundException('Game not found');
 
     if (!game)
       game = await this.prismaService.game.create({
@@ -148,7 +148,9 @@ export class GamesService {
 
   async getGames(
     search?: string,
-    params?: { size?: number; sort?: Ordering },
+    params: { size?: number; sort?: Ordering; includeDeleted?: boolean } = {
+      includeDeleted: false,
+    },
   ): Promise<GameSearchResult[]> {
     const data = await this.rawgService.getGames({
       search,
@@ -160,7 +162,7 @@ export class GamesService {
       data.results.map(async (game) => {
         try {
           return GamesService.convertCombinedGameToSearchResult(
-            await this.getGameByRawgId(game.id),
+            await this.getGameByRawgId(game.id, params.includeDeleted),
           );
         } catch (error) {
           return null;

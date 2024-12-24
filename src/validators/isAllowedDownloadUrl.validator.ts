@@ -3,7 +3,7 @@ import {
   ValidatorConstraint,
   ValidatorConstraintInterface,
 } from 'class-validator';
-import ALLOWED_HOSTS from 'src/misc/allowedHosts';
+import { ALLOWED_HOSTS } from 'share-ur-save-common';
 
 @ValidatorConstraint({ name: 'allowedDownloadUrl', async: false })
 export class IsAllowedDownloadUrl implements ValidatorConstraintInterface {
@@ -13,8 +13,8 @@ export class IsAllowedDownloadUrl implements ValidatorConstraintInterface {
       const hostname = parsedUrl.hostname;
 
       return Object.values(ALLOWED_HOSTS).some(
-        (AllowedHost) =>
-          AllowedHost.domain && hostname.endsWith(AllowedHost.domain),
+        (allowedHost) =>
+          allowedHost.domain && hostname.endsWith(allowedHost.domain),
       );
     } catch (error) {
       return false;

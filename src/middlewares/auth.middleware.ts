@@ -26,7 +26,10 @@ export class AuthMiddleware implements NestMiddleware {
       request.cookies['session_id'],
     )) as User;
 
-    this.logger.log(`Requested by ${user?.email || 'ANONYMOUS'}`);
+    this.logger.log(
+      `Requested by ${user?.email || 'ANONYMOUS'}`,
+      AuthMiddleware.name,
+    );
 
     if (!user) throw new UnauthorizedException();
 

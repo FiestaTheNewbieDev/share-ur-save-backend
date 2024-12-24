@@ -1,13 +1,18 @@
 import {
   Body,
   Controller,
+  Get,
   Logger,
   Param,
   Post,
+  Query,
   Req,
   Res,
 } from '@nestjs/common';
+import { Type } from 'class-transformer';
 import {
+  IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -15,11 +20,11 @@ import {
   Validate,
 } from 'class-validator';
 import { Request, Response } from 'express';
-import { User } from 'share-ur-save-common';
+import { SavesTab, User } from 'share-ur-save-common';
 import { SavesService } from 'src/services/saves.service';
 import { IsAllowedDownloadUrl } from 'src/validators/isAllowedDownloadUrl.validator';
 
-const BASE_URL = '/save';
+const BASE_URL = '/saves';
 
 class AddGameDto {
   @IsString()
@@ -37,13 +42,30 @@ class AddGameDto {
   downloadUrl: string;
 }
 
+class GetSaveDto {
+  @IsString()
+  @IsOptional()
+  @IsEnum(['new-today', 'new-this-week', 'latest', 'popular'])
+  tab?: SavesTab;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  size?: number;
+
+  @IsInt()
+  @IsOptional()
+  @Type(() => Number)
+  page?: number;
+}
+
 @Controller('')
 export class SavesController {
   private logger = new Logger(SavesController.name);
 
   constructor(private savesService: SavesService) {}
 
-  @Post(`${BASE_URL}/:gameUuid`)
+  @Post(`/save/:gameUuid`)
   async addSave(
     @Param('gameUuid') gameUuid: string,
     @Body() body: AddGameDto,
@@ -61,5 +83,23 @@ export class SavesController {
     });
 
     return response.status(201).json({ save: result });
+  }
+
+  @Get(`${BASE_URL}/:gameUuid`)
+  async getSaves(
+    @Param('gameUuid') gameUuid: string,
+    @Query() query: GetSaveDto,
+    @Req() request: Request,
+    @Res() response: Response,
+  ) {
+    this.logger.log(`Get saves for ${gameUuid}`);
+
+    const saves = await this.savesService.getGameSaves(gameUuid, {
+      tab: query.tab || 'new-today',
+      size: query.size ? parseInt(query.size.toString()) : undefined,
+      page: query.page ? parseInt(query.page.toString()) : undefined,
+    });
+
+    return response.status(200).json({ count: saves.length, saves });
   }
 }
