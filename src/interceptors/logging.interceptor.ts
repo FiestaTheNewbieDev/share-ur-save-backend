@@ -27,9 +27,7 @@ export class LoggingInterceptor implements NestInterceptor {
     const method = request.method;
     const url = request.url;
 
-    const user: User = (await this.redisService.get(
-      request.cookies['session_id'],
-    )) as User;
+    const user: User = request.user as User;
 
     this.logger.log(
       `${method} ${url} - Requested by ${user?.email || 'ANONYMOUS'}`,

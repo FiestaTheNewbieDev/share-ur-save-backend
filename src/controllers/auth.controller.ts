@@ -1,4 +1,16 @@
-import { Body, Controller, Get, Logger, Post, Req, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Logger,
+  Post,
+  Req,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiProperty } from '@nestjs/swagger';
 import {
   IsBoolean,
@@ -12,7 +24,10 @@ import {
   MinLength,
 } from 'class-validator';
 import { Request, Response } from 'express';
+import { User } from 'share-ur-save-common';
+import { AuthGuard } from 'src/guards/auth.guard';
 import { AuthService } from 'src/services/auth.service';
+import { UsersService } from 'src/services/users.service';
 
 class SignUpDto {
   @IsString()
@@ -60,7 +75,10 @@ class SignInDto {
 export class AuthController {
   private logger = new Logger(AuthController.name);
 
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private usersService: UsersService,
+  ) {}
 
   @Post('sign-up')
   async signUp(
@@ -115,15 +133,37 @@ export class AuthController {
     this.logger.log('Sign-out');
 
     await this.authService.signOut(request.cookies.session_id);
-    return response.status(200);
+
+    return response.status(200).send({
+      message: 'Sign-out successful',
+    });
   }
 
   @Get('user')
+  @UseGuards(AuthGuard)
   async fetchUser(@Req() request: Request, @Res() response: Response) {
     this.logger.log('Fetch user');
 
-    const result = await this.authService.fetchUser(request.cookies.session_id);
+    return response.status(200).json({ user: request.user });
+  }
 
-    return response.status(200).json(result);
+  @Post('user/profile-picture')
+  @UseGuards(AuthGuard)
+  @UseInterceptors(FileInterceptor('profilePicture'))
+  async updateProfilePicture(
+    @Req() request: Request,
+    @UploadedFile() profilePicture: Express.Multer.File,
+    @Res() response: Response,
+  ) {
+    const user: User = request.user as User;
+
+    this.logger.log(`Update profile picture for ${user.email}`);
+
+    const result = await this.usersService.updateProfilePicture(
+      user.uuid,
+      profilePicture,
+    );
+
+    return response.status(200).json({ user: result });
   }
 }

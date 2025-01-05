@@ -1,115 +1,242 @@
 import { Injectable } from '@nestjs/common';
-import { SavesTab } from 'share-ur-save-common';
-import { Save } from 'share-ur-save-common/dist/prisma/client';
+import * as cron from 'cron-parser';
+import {
+  AggregatedSave,
+  Save,
+  SavesTab,
+  SaveUpvote,
+} from 'share-ur-save-common';
+import { FirebaseService } from 'src/services/firebase.service';
 import { PrismaService } from 'src/services/prisma.service';
+import { SaveUpvotesService } from 'src/services/saveUpvotes.service';
 
 type CreateSaveParams = Pick<
   Save,
   'title' | 'downloadUrl' | 'authorUuid' | 'gameUuid'
-> & { description?: string };
+> & { description?: string; thumbnail: Express.Multer.File };
 
+type GetGameSavesParams = {
+  customerUuid?: string;
+  page?: number;
+  size?: number;
+};
+
+type GetGameSavesResponse = {
+  saves: AggregatedSave[];
+  totalCount: number;
+  totalPages: number;
+};
+
+const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
 
 @Injectable()
 export class SavesService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(
+    private prismaService: PrismaService,
+    private firebaseService: FirebaseService,
+    private saveUpvotesService: SaveUpvotesService,
+  ) {}
+
+  private static calculateTotalPages(totalCount?: number, pageSize?: number) {
+    return Math.ceil(totalCount / (pageSize || DEFAULT_PAGE_SIZE));
+  }
+
+  async getGameSave(uuid: string, params?: { customerUuid?: string }) {
+    const save = await this.prismaService.save
+      .findUnique({
+        where: { uuid },
+        include: {
+          author: {
+            select: { uuid: true, username: true, displayName: true },
+          },
+          saveUpvotes: true,
+        },
+      })
+      .then((save) =>
+        this.saveUpvotesService.populateSaveWithUpvotes(
+          save,
+          params?.customerUuid,
+        ),
+      );
+
+    return save;
+  }
+
+  async getNewGameSavesByCronExp(
+    gameUuid: string,
+    cronExp: string,
+    params?: GetGameSavesParams,
+  ): Promise<GetGameSavesResponse> {
+    const interval = cron.parseExpression(cronExp);
+    const gte = interval.prev().toDate();
+    const lte = interval.next().toDate();
+
+    const baseRequest: any = {
+      where: {
+        gameUuid,
+        OR: [{ createdAt: { gte, lte } }, { updatedAt: { gte, lte } }],
+      },
+    };
+
+    const [saves, totalCount] = await Promise.all([
+      await this.prismaService.save
+        .findMany({
+          ...baseRequest,
+          orderBy: { createdAt: 'desc' },
+          take: params.size || DEFAULT_PAGE_SIZE,
+          skip: (params.page - 1) * params.size || 0,
+          include: {
+            author: {
+              select: { uuid: true, username: true, displayName: true },
+            },
+            saveUpvotes: true,
+          },
+        })
+        .then((saves) =>
+          saves.map((save: Save & { saveUpvotes: SaveUpvote[] }) =>
+            this.saveUpvotesService.populateSaveWithUpvotes(
+              save,
+              params.customerUuid,
+            ),
+          ),
+        ),
+      await this.prismaService.save.count(baseRequest),
+    ]);
+
+    const totalPages = SavesService.calculateTotalPages(
+      totalCount,
+      params.size,
+    );
+
+    return {
+      saves: saves as any[],
+      totalCount,
+      totalPages,
+    };
+  }
 
   async getLatestGameSaves(
     gameUuid: string,
-    params?: { size?: number; page: number },
-  ): Promise<Save[]> {
-    return this.prismaService.save.findMany({
+    params?: GetGameSavesParams,
+  ): Promise<GetGameSavesResponse> {
+    const baseRequest: any = {
       where: { gameUuid },
-      orderBy: { createdAt: 'desc' },
-      take: params.size || DEFAULT_PAGE_SIZE,
-      skip: (params.page - 1) * params.size || 0,
-    });
+    };
+
+    const [saves, totalCount] = await Promise.all([
+      await this.prismaService.save
+        .findMany({
+          ...baseRequest,
+          orderBy: { createdAt: 'desc' },
+          take: params.size || DEFAULT_PAGE_SIZE,
+          skip: ((params.page || DEFAULT_PAGE) - 1) * params.size || 0,
+          include: {
+            author: {
+              select: { uuid: true, username: true, displayName: true },
+            },
+            saveUpvotes: true,
+          },
+        })
+        .then((saves) =>
+          saves.map((save: Save & { saveUpvotes: SaveUpvote[] }) =>
+            this.saveUpvotesService.populateSaveWithUpvotes(
+              save,
+              params.customerUuid,
+            ),
+          ),
+        ),
+      await this.prismaService.save.count(baseRequest),
+    ]);
+
+    const totalPages = SavesService.calculateTotalPages(
+      totalCount,
+      params.size,
+    );
+
+    return { saves: saves as AggregatedSave[], totalCount, totalPages };
   }
 
-  async getNewTodayGameSaves(
-    gameUuid: string,
-    params?: { size?: number; page: number },
-  ): Promise<Save[]> {
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
+  async getPopularGameSaves(gameUuid: string, params?: GetGameSavesParams) {
+    const baseRequest: any = {
+      where: { gameUuid },
+    };
 
-    const endOfDay = new Date();
-    endOfDay.setHours(23, 59, 59, 999);
+    const [saves, totalCount] = await Promise.all([
+      await this.prismaService.save
+        .findMany({
+          ...baseRequest,
+          orderBy: { upvotes: 'desc' },
+          take: params.size || DEFAULT_PAGE_SIZE,
+          skip: ((params.page || DEFAULT_PAGE) - 1) * params.size || 0,
+          include: {
+            author: {
+              select: { uuid: true, username: true, displayName: true },
+            },
+            saveUpvotes: true,
+          },
+        })
+        .then((saves) =>
+          saves.map((save: Save & { saveUpvotes: SaveUpvote[] }) =>
+            this.saveUpvotesService.populateSaveWithUpvotes(
+              save,
+              params.customerUuid,
+            ),
+          ),
+        ),
+      await this.prismaService.save.count(baseRequest),
+    ]);
 
-    return this.prismaService.save.findMany({
-      where: {
-        gameUuid,
-        OR: [
-          { createdAt: { gte: startOfDay, lte: endOfDay } },
-          { updatedAt: { gte: startOfDay, lte: endOfDay } },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: params.size || DEFAULT_PAGE_SIZE,
-      skip: (params.page - 1) * params.size || 0,
-    });
-  }
+    const totalPages = SavesService.calculateTotalPages(
+      totalCount,
+      params.size,
+    );
 
-  async getNewThisWeekGameSaves(
-    gameUuid: string,
-    params?: { size?: number; page: number },
-  ): Promise<Save[]> {
-    const startOfWeek = new Date();
-    startOfWeek.setHours(0, 0, 0, 0);
-    startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
-
-    const endOfWeek = new Date();
-    endOfWeek.setHours(23, 59, 59, 999);
-    endOfWeek.setDate(startOfWeek.getDate() + 6);
-
-    return this.prismaService.save.findMany({
-      where: {
-        gameUuid,
-        OR: [
-          { createdAt: { gte: startOfWeek, lte: endOfWeek } },
-          { updatedAt: { gte: startOfWeek, lte: endOfWeek } },
-        ],
-      },
-      orderBy: { createdAt: 'desc' },
-      take: params.size || DEFAULT_PAGE_SIZE,
-      skip: (params.page - 1) * params.size || 0,
-    });
+    return { saves: saves as AggregatedSave[], totalCount, totalPages };
   }
 
   async getGameSaves(
     gameUuid: string,
     params?: {
       tab?: SavesTab;
-      size?: number;
-      page?: number;
-    },
-  ): Promise<Save[]> {
+    } & GetGameSavesParams,
+  ): Promise<GetGameSavesResponse> {
     switch (params.tab) {
       case 'new-today':
-        return this.getNewTodayGameSaves(gameUuid, {
+        return this.getNewGameSavesByCronExp(gameUuid, '0 0 * * *', {
           size: params.size,
           page: params.page,
+          customerUuid: params.customerUuid,
         });
       case 'new-this-week':
-        return this.getNewThisWeekGameSaves(gameUuid, {
+        return this.getNewGameSavesByCronExp(gameUuid, '0 0 * * 1', {
           size: params.size,
           page: params.page,
+          customerUuid: params.customerUuid,
         });
       case 'latest':
         return this.getLatestGameSaves(gameUuid, {
           size: params.size,
           page: params.page,
+          customerUuid: params.customerUuid,
+        });
+      case 'popular':
+        return this.getPopularGameSaves(gameUuid, {
+          size: params.size,
+          page: params.page,
+          customerUuid: params.customerUuid,
         });
       default:
         return this.getLatestGameSaves(gameUuid, {
           size: params.size,
           page: params.page,
+          customerUuid: params.customerUuid,
         });
     }
   }
 
-  async create(params: CreateSaveParams): Promise<Save> {
-    return this.prismaService.save.create({
+  async create(params: CreateSaveParams): Promise<AggregatedSave> {
+    const save = await this.prismaService.save.create({
       data: {
         gameUuid: params.gameUuid,
         authorUuid: params.authorUuid,
@@ -118,5 +245,31 @@ export class SavesService {
         downloadUrl: params.downloadUrl,
       },
     });
+
+    if (params.thumbnail) {
+      const thumbnailUrl = await this.firebaseService.uploadFile(
+        `${save.uuid}/thumbnail`,
+        params.thumbnail,
+      );
+
+      return (await this.prismaService.save.update({
+        where: { uuid: save.uuid },
+        data: { thumbnailUrl },
+        include: {
+          author: {
+            select: { uuid: true, username: true, displayName: true },
+          },
+        },
+      })) as AggregatedSave;
+    }
+
+    return (await this.prismaService.save.findUnique({
+      where: { uuid: save.uuid },
+      include: {
+        author: {
+          select: { uuid: true, username: true, displayName: true },
+        },
+      },
+    })) as AggregatedSave;
   }
 }

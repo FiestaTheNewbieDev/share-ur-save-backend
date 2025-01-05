@@ -1,21 +1,10 @@
-import {
-  MiddlewareConsumer,
-  Module,
-  NestModule,
-  RequestMethod,
-} from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { SavesController } from 'src/controllers/saves.controller';
-import { AuthMiddleware } from 'src/middlewares/auth.middleware';
 import { SavesService } from 'src/services/saves.service';
+import { SaveUpvotesService } from 'src/services/saveUpvotes.service';
 
 @Module({
-  providers: [SavesService],
+  providers: [SavesService, SaveUpvotesService],
   controllers: [SavesController],
 })
-export class SavesModule implements NestModule {
-  configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(AuthMiddleware)
-      .forRoutes({ path: 'save/:gameUuid', method: RequestMethod.POST });
-  }
-}
+export class SavesModule {}

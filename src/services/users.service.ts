@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, UnauthorizedException } from '@nestjs/common';
 import bcrypt from 'bcrypt';
 import { User } from 'share-ur-save-common';
+import { FirebaseService } from 'src/services/firebase.service';
 import { PrismaService } from 'src/services/prisma.service';
 
 type CreateUserParams = {
@@ -19,7 +20,10 @@ type CreateUserParams = {
 
 @Injectable()
 export class UsersService {
-  constructor(private prismaService: PrismaService) {}
+  constructor(
+    private prismaService: PrismaService,
+    private firebaseService: FirebaseService,
+  ) {}
 
   async findByUuid(uuid: string): Promise<User> {
     return this.prismaService.user.findUnique({
@@ -55,5 +59,31 @@ export class UsersService {
           : params.hashedPassword,
       },
     });
+  }
+
+  async updateProfilePicture(
+    userUuid: string,
+    picture: Express.Multer.File,
+  ): Promise<{ user: Omit<User, 'password'> }> {
+    let user = await this.findByUuid(userUuid);
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const pictureUrl = await this.firebaseService.uploadFile(
+      `${userUuid}/profile-picture`,
+      picture,
+    );
+
+    user = await this.prismaService.user.update({
+      where: { uuid: userUuid },
+      data: { pictureUrl },
+    });
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = user;
+
+    return { user: userWithoutPassword };
   }
 }
