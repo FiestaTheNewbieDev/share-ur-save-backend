@@ -102,13 +102,15 @@ export class SavesController {
     @Req() request: Request,
     @Res() response: Response,
   ) {
+    const user: User = request.user as User;
+
     this.logger.log(`Get saves for ${gameUuid}`);
 
     const results = await this.savesService.getGameSaves(gameUuid, {
       tab: query.tab || 'new-today',
       size: query.size ? parseInt(query.size.toString()) : undefined,
       page: query.page ? parseInt(query.page.toString()) : undefined,
-      customerUuid: (request.user as User)?.uuid,
+      customerUuid: user?.uuid,
     });
 
     return response
@@ -133,7 +135,7 @@ export class SavesController {
       'UP',
     );
 
-    return response.status(200).send({ message: 'Upvoted', upvote: results });
+    return response.status(200).send({ message: 'Upvoted', save: results });
   }
 
   @Post(`/save/:saveUuid/downvote`)
@@ -153,6 +155,6 @@ export class SavesController {
       'DOWN',
     );
 
-    return response.status(200).send({ message: 'Downvoted', upvote: results });
+    return response.status(200).send({ message: 'Downvoted', save: results });
   }
 }
